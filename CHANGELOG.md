@@ -7,7 +7,6 @@
 - Options reordered: Security, DNS, Split tunneling and Diagnostics are now separate blocks with their own icon.
 - Home screen shows a green/red indicator next to Connected/Disconnected.
 - Security and Diagnostics are centered and width-capped on large screens and Android TV.
-- Optional side-by-side dev build: `./gradlew assembleDebug -PdevBuild` installs as `com.carlese.simpleproxy.app.dev` ("Simple Proxy Dev").
 
 ## 1.0.1
 
