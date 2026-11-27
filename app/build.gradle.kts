@@ -27,6 +27,25 @@ if (!googleServicesFile.exists()) {
                   "current_key": "AIzaSyDummyApiKeyForOpenSourceBuilds"
                 }
               ]
+            },
+            {
+              "client_info": {
+                "mobilesdk_app_id": "1:000000000000:android:0000000000000000000dev",
+                "android_client_info": {
+                  "package_name": "com.carlese.simpleproxy.app.dev"
+                }
+              },
+              "oauth_client": [
+                {
+                  "client_id": "000000000000-dummy.apps.googleusercontent.com",
+                  "client_type": 3
+                }
+              ],
+              "api_key": [
+                {
+                  "current_key": "AIzaSyDummyApiKeyForOpenSourceBuilds"
+                }
+              ]
             }
           ],
           "configuration_version": "1"
@@ -63,9 +82,11 @@ android {
 
     buildTypes {
         debug {
-            // Build affiancata: si installa accanto alla versione stabile
-            applicationIdSuffix = ".dev"
-            versionNameSuffix = "-dev"
+            // Build affiancata solo su richiesta: ./gradlew assembleDebug -PdevBuild
+            if (project.hasProperty("devBuild")) {
+                applicationIdSuffix = ".dev"
+                versionNameSuffix = "-dev"
+            }
         }
         release {
             isMinifyEnabled = true
