@@ -52,8 +52,8 @@ android {
         applicationId = "com.carlese.simpleproxy.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.0.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -62,6 +62,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Build affiancata: si installa accanto alla versione stabile
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true

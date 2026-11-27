@@ -47,6 +47,9 @@ data class AppSettings(
     val autoCheckUpdates: Boolean = true,
     val splitTunnelMode: SplitTunnelMode = SplitTunnelMode.EXCLUDE,
     val excludedApps: Set<String> = emptySet(),
+    val blockIpv6: Boolean = true,
+    val blockQuic: Boolean = false,
+    val leakAlerts: Boolean = true,
     val activeProfileId: String? = null,
     val lastSyncTime: String? = null
 )
@@ -94,6 +97,9 @@ class SettingsRepository private constructor(context: Context) {
             autoCheckUpdates = prefs.getBoolean("auto_check_updates", true),
             splitTunnelMode = splitMode,
             excludedApps = excluded,
+            blockIpv6 = prefs.getBoolean("block_ipv6", true),
+            blockQuic = prefs.getBoolean("block_quic", false),
+            leakAlerts = prefs.getBoolean("leak_alerts", true),
             activeProfileId = prefs.getString("active_profile_id", null),
             lastSyncTime = prefs.getString("last_sync_time", null)
         )
@@ -114,6 +120,9 @@ class SettingsRepository private constructor(context: Context) {
             putBoolean("auto_check_updates", s.autoCheckUpdates)
             putString("split_tunnel_mode", s.splitTunnelMode.name)
             putStringSet("excluded_apps", HashSet(s.excludedApps))
+            putBoolean("block_ipv6", s.blockIpv6)
+            putBoolean("block_quic", s.blockQuic)
+            putBoolean("leak_alerts", s.leakAlerts)
             putString("active_profile_id", s.activeProfileId)
             putString("last_sync_time", s.lastSyncTime)
         }

@@ -7,6 +7,7 @@ import kotlinx.coroutines.*
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.io.EOFException
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.DatagramPacket
@@ -824,6 +825,65 @@ class LocalSocksBridge(
             }.also {
                 runCatching { socket?.close() }
             }
+        }
+
+        fun fetchViaProxy(
+            profile: ProxyProfile,
+            resolvedConnectHost: String,
+            targetHost: String,
+            targetPort: Int,
+            path: String,
+            protectSocket: (Socket) -> Boolean
+        ): Result<String> {
+            val bridge = LocalSocksBridge(profile, resolvedConnectHost, protectSocket)
+            var socket: Socket? = null
+            return runCatching {
+                socket = bridge.connectUpstream(
+                    targetHost = targetHost,
+                    targetPort = targetPort,
+                    connectTimeoutMs = 6_000,
+                    readTimeoutMs = 6_000
+                )
+                val request = buildString {
+                    append("GET ").append(if (path.startsWith('/')) path else "/$path")
+                        .append(" HTTP/1.0\r\n")
+                    append("Host: ").append(targetHost).append("\r\n")
+                    append("User-Agent: SimpleProxy-Diagnostics\r\n")
+                    append("Accept: text/plain\r\n")
+                    append("Connection: close\r\n\r\n")
+                }
+                val out = socket.getOutputStream()
+                out.write(request.toByteArray(Charsets.ISO_8859_1))
+                out.flush()
+                val response = socket.getInputStream().readBytes().toString(Charsets.UTF_8)
+                val headerPart = response.substringBefore("\r\n\r\n", "")
+                val body = response.substringAfter("\r\n\r\n", response)
+                val isChunked = headerPart.lineSequence()
+                    .any { it.startsWith("Transfer-Encoding:", ignoreCase = true) && it.contains("chunked", true) }
+                val payload = if (isChunked) decodeChunked(body) else body
+                if (headerPart.isNotBlank() && !headerPart.lineSequence().first().contains(" 200")) {
+                    throw IOException("HTTP: ${headerPart.lineSequence().first()}")
+                }
+                payload.ifBlank { response }
+            }.also {
+                runCatching { socket?.close() }
+            }
+        }
+
+        private fun decodeChunked(body: String): String {
+            val out = StringBuilder()
+            var index = 0
+            while (index < body.length) {
+                val lineEnd = body.indexOf("\r\n", index)
+                if (lineEnd < 0) break
+                val size = body.substring(index, lineEnd).substringBefore(';').trim().toIntOrNull(16)
+                if (size == null || size == 0) break
+                val start = lineEnd + 2
+                val end = (start + size).coerceAtMost(body.length)
+                out.append(body, start, end)
+                index = end + 2
+            }
+            return out.toString()
         }
     }
 }

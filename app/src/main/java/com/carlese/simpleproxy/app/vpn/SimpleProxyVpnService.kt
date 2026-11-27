@@ -228,7 +228,7 @@ class SimpleProxyVpnService : VpnService() {
                 Socks5UdpProbeResult(supported = false, udpOverrideAddress = null)
             }
             if (operationSeq.get() != seq) return
-            val useDirectSocks5 = socks5Probe.supported
+            val useDirectSocks5 = socks5Probe.supported && !settings.blockQuic
 
             val (socksHost, socksPort) = if (useDirectSocks5) {
                 resolvedProxyHost to profile.port
@@ -251,8 +251,10 @@ class SimpleProxyVpnService : VpnService() {
                 .setMtu(1400)
                 .addAddress("198.18.0.1", 32)
                 .addRoute("0.0.0.0", 0)
-                .addAddress("fc00::1", 128)
-                .addRoute("::", 0)
+            if (settings.blockIpv6) {
+                builder.addAddress("fc00::1", 128)
+                builder.addRoute("::", 0)
+            }
 
             dnsServers.forEach { dns ->
                 builder.addDnsServer(dns)

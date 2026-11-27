@@ -34,9 +34,11 @@ import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.LocalCafe
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.NetworkCheck
 import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -126,6 +128,8 @@ fun OptionsScreen(
     var showBugReportDialog by remember { mutableStateOf(false) }
     var showUpdateDialog by remember { mutableStateOf(false) }
     var forceUpdateCheck by remember { mutableStateOf(true) }
+    var showSecurity by remember { mutableStateOf(false) }
+    var showDiagnostics by remember { mutableStateOf(false) }
 
     LaunchedEffect(openUpdatesOnLaunch) {
         if (openUpdatesOnLaunch) {
@@ -141,6 +145,24 @@ fun OptionsScreen(
             snackbarHostState.showSnackbar(err)
             onDismissAccountError()
         }
+    }
+
+    if (showSecurity) {
+        SecurityScreen(
+            settings = settings,
+            strings = strings,
+            onUpdateSettings = onUpdateSettings,
+            onBack = { showSecurity = false }
+        )
+        return
+    }
+    if (showDiagnostics) {
+        DiagnosticsScreen(
+            settings = settings,
+            strings = strings,
+            onBack = { showDiagnostics = false }
+        )
+        return
     }
 
     Scaffold(
@@ -607,6 +629,57 @@ fun OptionsScreen(
                     }
                 }
 
+                // Sicurezza
+                item(key = "security", contentType = "action_card") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = strings.securityTitle,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        OutlinedCard(
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            colors = CardDefaults.outlinedCardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .tvFocusRing(RoundedCornerShape(16.dp))
+                                    .clickable { showSecurity = true }
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Shield,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        text = strings.securityTitle,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = strings.securitySubtitle,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Rounded.ChevronRight,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // DNS (Menu a tendina con Quad9, OpenDNS e IP personalizzato)
                 item(key = "dns", contentType = "dropdown_section") {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -751,6 +824,11 @@ fun OptionsScreen(
                 // Split Tunneling (App Exclusion)
                 item(key = "split_tunnel", contentType = "action_card") {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = strings.splitTunnelTitle,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
                         OutlinedCard(
                             shape = RoundedCornerShape(16.dp),
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -787,6 +865,57 @@ fun OptionsScreen(
                                     }
                                     Text(
                                         text = splitSubtitle,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Rounded.ChevronRight,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Diagnostica
+                item(key = "diagnostics", contentType = "action_card") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = strings.diagnosticsTitle,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        OutlinedCard(
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            colors = CardDefaults.outlinedCardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .tvFocusRing(RoundedCornerShape(16.dp))
+                                    .clickable { showDiagnostics = true }
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.NetworkCheck,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        text = strings.diagnosticsTitle,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = strings.diagnosticsSubtitle,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )

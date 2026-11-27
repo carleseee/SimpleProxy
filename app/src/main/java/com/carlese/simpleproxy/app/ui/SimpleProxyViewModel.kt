@@ -167,7 +167,9 @@ class SimpleProxyViewModel(application: Application) : AndroidViewModel(applicat
                 previous.autoReconnect != current.autoReconnect ||
                 previous.persistentNotification != current.persistentNotification ||
                 previous.splitTunnelMode != current.splitTunnelMode ||
-                previous.excludedApps != current.excludedApps
+                previous.excludedApps != current.excludedApps ||
+                previous.blockIpv6 != current.blockIpv6 ||
+                previous.blockQuic != current.blockQuic
 
         val liveProfileId = connectedProfileId.value ?: current.activeProfileId
         if (vpnOptionChanged && (isVpnRunning.value || isVpnConnecting.value) && liveProfileId != null) {

@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
@@ -23,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -307,15 +309,32 @@ private fun VpnPowerButton(
                 }
             }
             Spacer(Modifier.height(14.dp))
-            Text(
-                text = when {
-                    isConnecting -> strings.connecting
-                    isRunning -> strings.connected
-                    else -> strings.disconnected
-                },
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(
+                            when {
+                                isConnecting -> Color(0xFFF59E0B)
+                                isRunning -> Color(0xFF22C55E)
+                                else -> Color(0xFFEF4444)
+                            }
+                        )
+                )
+                Text(
+                    text = when {
+                        isConnecting -> strings.connecting
+                        isRunning -> strings.connected
+                        else -> strings.disconnected
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
             Text(
                 text = activeProfile?.let { "${it.name} • ${it.protocol.name} • ${it.host}:${it.port}" } ?: strings.selectProxy,
                 style = MaterialTheme.typography.bodySmall,

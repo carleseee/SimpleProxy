@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.2
+
+- New Security screen: Always-on VPN status with a shortcut to Android settings, IPv6 blocking, QUIC/UDP blocking and leak alerts.
+- New Connection diagnostics: real IP through the proxy, device IP, latency, DNS, IPv6 and UDP/QUIC status, with a basic leak warning and a WebRTC browser test shortcut.
+- Options reordered: Security, DNS, Split tunneling and Diagnostics are now separate blocks with their own icon.
+- Home screen shows a green/red indicator next to Connected/Disconnected.
+- Security and Diagnostics are centered and width-capped on large screens and Android TV.
+- Debug builds now install side by side as `com.carlese.simpleproxy.app.dev` ("Simple Proxy Dev").
+
 ## 1.0.1
 
 - Fixed Google Sign-In on Android TV devices by falling back to the classic Google Sign-In flow when Credential Manager is cancelled or unavailable.
