@@ -71,7 +71,11 @@ class SimpleProxyViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun signInWithGoogle(activity: Activity, onNeedLegacyIntent: (IntentSender) -> Unit) {
+    fun signInWithGoogle(
+        activity: Activity,
+        onNeedLegacyIntent: (IntentSender) -> Unit,
+        onNeedClassicIntent: (Intent) -> Unit,
+    ) {
         viewModelScope.launch {
             cloudSync.setSigningIn(true)
             when (val outcome = GoogleSignInHelper.requestGoogleIdToken(activity)) {
@@ -82,12 +86,27 @@ class SimpleProxyViewModel(application: Application) : AndroidViewModel(applicat
                     cloudSync.setSigningIn(false)
                     onNeedLegacyIntent(outcome.intentSender)
                 }
+                is GoogleSignInOutcome.NeedClassicIntent -> {
+                    cloudSync.setSigningIn(false)
+                    onNeedClassicIntent(outcome.intent)
+                }
                 GoogleSignInOutcome.Cancelled -> {
                     cloudSync.setSigningIn(false)
                 }
                 is GoogleSignInOutcome.Error -> {
                     cloudSync.reportError(outcome.message)
                 }
+            }
+        }
+    }
+
+    fun completeClassicGoogleSignIn(data: Intent?) {
+        viewModelScope.launch {
+            val result = GoogleSignInHelper.extractIdTokenFromClassicSignInIntent(data)
+            result.onSuccess { idToken ->
+                cloudSync.signInWithGoogleIdToken(idToken)
+            }.onFailure { err ->
+                cloudSync.reportError(err.localizedMessage ?: "Google Sign-In failed")
             }
         }
     }

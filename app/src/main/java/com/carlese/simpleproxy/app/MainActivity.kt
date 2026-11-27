@@ -107,6 +107,14 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
+            val classicSignInLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.StartActivityForResult(),
+            ) { result ->
+                if (result.resultCode == RESULT_OK) {
+                    vm.completeClassicGoogleSignIn(result.data)
+                }
+            }
+
             val driveConsentLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.StartIntentSenderForResult(),
             ) { result ->
@@ -214,17 +222,29 @@ class MainActivity : AppCompatActivity() {
                             accountState = accountState,
                             strings = strings,
                             onSignInGoogle = {
-                                vm.signInWithGoogle(this@MainActivity) { intentSender ->
-                                    runCatching {
-                                        legacySignInLauncher.launch(
-                                            IntentSenderRequest.Builder(intentSender).build(),
-                                        )
-                                    }.onFailure { err ->
-                                        vm.reportSyncError(
-                                            err.localizedMessage ?: "Google Sign-In failed",
-                                        )
-                                    }
-                                }
+                                vm.signInWithGoogle(
+                                    activity = this@MainActivity,
+                                    onNeedLegacyIntent = { intentSender ->
+                                        runCatching {
+                                            legacySignInLauncher.launch(
+                                                IntentSenderRequest.Builder(intentSender).build(),
+                                            )
+                                        }.onFailure { err ->
+                                            vm.reportSyncError(
+                                                err.localizedMessage ?: "Google Sign-In failed",
+                                            )
+                                        }
+                                    },
+                                    onNeedClassicIntent = { intent ->
+                                        runCatching {
+                                            classicSignInLauncher.launch(intent)
+                                        }.onFailure { err ->
+                                            vm.reportSyncError(
+                                                err.localizedMessage ?: "Google Sign-In failed",
+                                            )
+                                        }
+                                    },
+                                )
                             },
                             onSyncNow = vm::syncNow,
                             onSignOutGoogle = vm::signOutGoogle,

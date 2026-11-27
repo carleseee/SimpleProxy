@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1
+
+- Fixed Google Sign-In on Android TV devices by falling back to the classic Google Sign-In flow when Credential Manager is cancelled or unavailable.
+- Improved the split tunneling dialog on Android TV: the window now expands to the full screen, giving the app list much more vertical space.
+- Restored compatibility with Google Play Services builds that still provide the classic GoogleSignIn API.
+
 ## 1.0.0
 
 - Initial public release.

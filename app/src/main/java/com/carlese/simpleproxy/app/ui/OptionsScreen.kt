@@ -1,9 +1,12 @@
 package com.carlese.simpleproxy.app.ui
 
 import android.annotation.SuppressLint
+import android.app.UiModeManager
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.content.res.Configuration
+import android.view.WindowManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
@@ -46,6 +49,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -54,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.graphics.drawable.toBitmap
 import coil3.compose.AsyncImage
 import com.carlese.simpleproxy.app.R
@@ -1373,6 +1378,22 @@ private fun SplitTunnelAppsDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val isTv = remember(context) {
+        context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK) ||
+            context.getSystemService(UiModeManager::class.java)?.currentModeType ==
+            Configuration.UI_MODE_TYPE_TELEVISION
+    }
+    if (isTv) {
+        SplitTunnelAppsDialogTv(
+            splitTunnelMode = splitTunnelMode,
+            excludedPackages = excludedPackages,
+            strings = strings,
+            onToggleMode = onToggleMode,
+            onSetPackagesSelected = onSetPackagesSelected,
+            onDismiss = onDismiss
+        )
+        return
+    }
     var searchQuery by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf(SplitTunnelAppFilter.ALL) }
     var apps by remember { mutableStateOf<List<SplitTunnelApp>?>(null) }
@@ -1422,19 +1443,36 @@ private fun SplitTunnelAppsDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        val dialogView = LocalView.current
+        SideEffect {
+            if (isTv) {
+                (dialogView.parent as? DialogWindowProvider)?.window?.setLayout(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT
+                )
+            }
+        }
         Surface(
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             tonalElevation = 6.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-                .widthIn(max = 460.dp)
-                .heightIn(max = 640.dp)
+            modifier = if (isTv) {
+                Modifier
+                    .fillMaxWidth(0.94f)
+                    .fillMaxHeight(0.94f)
+                    .padding(horizontal = 24.dp, vertical = 12.dp)
+                    .widthIn(max = 900.dp)
+            } else {
+                Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+                    .widthIn(max = 460.dp)
+                    .heightIn(max = 640.dp)
+            }
         ) {
             Column(
                 modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(if (isTv) 8.dp else 12.dp)
             ) {
                 Text(
                     text = strings.splitTunnelTitle,
@@ -1580,7 +1618,7 @@ private fun SplitTunnelAppsDialog(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f, fill = false)
+                            .weight(1f, fill = isTv)
                             .height(220.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -1679,7 +1717,7 @@ private fun SplitTunnelAppsDialog(
                             state = appsListState,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f, fill = false),
+                                .weight(1f, fill = isTv),
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             items(filtered, key = { it.primaryPackage }, contentType = { "app_row" }) { app ->
@@ -1808,6 +1846,528 @@ private fun SplitTunnelAppsDialog(
                         modifier = Modifier.tvFocusRing(CircleShape)
                     ) {
                         Text(strings.done)
+                    }
+                }
+            }
+        }
+    }
+
+    val pendingSelection = pendingSystemSelection
+    if (pendingSelection != null) {
+        AlertDialog(
+            onDismissRequest = { pendingSystemSelection = null },
+            title = { Text(strings.splitTunnelSystemConfirmTitle) },
+            text = { Text(strings.splitTunnelSystemConfirmBody) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onSetPackagesSelected(
+                            pendingSelection.map { it.primaryPackage }.toSet(),
+                            true
+                        )
+                        pendingSystemSelection = null
+                    }
+                ) {
+                    Text(strings.splitTunnelSelectAll)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingSystemSelection = null }) {
+                    Text(strings.cancel)
+                }
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun SplitTunnelAppsDialogTv(
+    splitTunnelMode: SplitTunnelMode,
+    excludedPackages: Set<String>,
+    strings: AppStrings,
+    onToggleMode: (SplitTunnelMode) -> Unit,
+    onSetPackagesSelected: (Set<String>, Boolean) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    var searchQuery by remember { mutableStateOf("") }
+    var filter by remember { mutableStateOf(SplitTunnelAppFilter.ALL) }
+    var apps by remember { mutableStateOf<List<SplitTunnelApp>?>(null) }
+    var modeMenuExpanded by remember { mutableStateOf(false) }
+    var pendingSystemSelection by remember { mutableStateOf<List<SplitTunnelApp>?>(null) }
+
+    LaunchedEffect(Unit) {
+        apps = withContext(Dispatchers.IO) {
+            val pm = context.packageManager
+            val infos = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION")
+                pm.getInstalledApplications(0)
+            }
+            val byUid = linkedMapOf<Int, MutableList<ApplicationInfo>>()
+            infos.forEach { info ->
+                if (info.packageName == context.packageName || !info.enabled) return@forEach
+                byUid.getOrPut(info.uid) { mutableListOf() }.add(info)
+            }
+            byUid.map { (uid, members) ->
+                val primary = members.minWithOrNull(
+                    compareBy({ it.packageName != "android" }, { it.packageName.length }, { it.packageName })
+                ) ?: members.first()
+                val label = if (uid == 1000) {
+                    strings.splitTunnelAndroidSystem
+                } else {
+                    runCatching { pm.getApplicationLabel(primary).toString() }
+                        .getOrDefault(primary.packageName)
+                }
+                val isSystem = members.any { info ->
+                    (info.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0
+                }
+                SplitTunnelApp(
+                    primaryPackage = primary.packageName,
+                    packageNames = members.map { it.packageName }.sorted(),
+                    label = label.ifBlank { primary.packageName },
+                    isSystem = isSystem,
+                    uid = uid
+                )
+            }.sortedWith(compareBy({ it.isSystem }, { it.label.lowercase() }))
+        }
+    }
+
+    val loaded = apps
+    val query = searchQuery.trim()
+    val filtered = remember(loaded, filter, query) {
+        loaded?.filter { app ->
+            val matchesFilter = when (filter) {
+                SplitTunnelAppFilter.ALL -> true
+                SplitTunnelAppFilter.USER -> !app.isSystem
+                SplitTunnelAppFilter.SYSTEM -> app.isSystem
+            }
+            matchesFilter && (query.isEmpty() ||
+                app.label.contains(query, ignoreCase = true) ||
+                app.packageNames.any { it.contains(query, ignoreCase = true) })
+        } ?: emptyList()
+    }
+    val userCount = loaded?.count { !it.isSystem } ?: 0
+    val systemCount = loaded?.count { it.isSystem } ?: 0
+    val modes = remember(strings) {
+        listOf(
+            SplitTunnelMode.EXCLUDE to strings.splitTunnelModeExclude,
+            SplitTunnelMode.INCLUDE to strings.splitTunnelModeInclude
+        )
+    }
+    val currentModeLabel = modes.firstOrNull { (mode, _) -> mode == splitTunnelMode }?.second
+        ?: strings.splitTunnelModeExclude
+    val isInclude = splitTunnelMode == SplitTunnelMode.INCLUDE
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        val dialogView = LocalView.current
+        SideEffect {
+            (dialogView.parent as? DialogWindowProvider)?.window?.setLayout(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT
+            )
+        }
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            tonalElevation = 6.dp,
+            modifier = Modifier
+                .fillMaxSize(0.94f)
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
+                horizontalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .width(340.dp)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = strings.splitTunnelTitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Surface(
+                        onClick = { modeMenuExpanded = !modeMenuExpanded },
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .tvFocusRing(RoundedCornerShape(16.dp))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = currentModeLabel,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Icon(
+                                imageVector = if (modeMenuExpanded) {
+                                    Icons.Rounded.KeyboardArrowUp
+                                } else {
+                                    Icons.Rounded.ArrowDropDown
+                                },
+                                contentDescription = strings.splitTunnelTitle
+                            )
+                        }
+                    }
+
+                    AnimatedVisibility(
+                        visible = modeMenuExpanded,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                modes.forEachIndexed { index, (mode, label) ->
+                                    val isSelected = mode == splitTunnelMode
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(
+                                                RoundedCornerShape(
+                                                    topStart = if (index == 0) 16.dp else 0.dp,
+                                                    topEnd = if (index == 0) 16.dp else 0.dp,
+                                                    bottomStart = if (index == modes.lastIndex) 16.dp else 0.dp,
+                                                    bottomEnd = if (index == modes.lastIndex) 16.dp else 0.dp
+                                                )
+                                            )
+                                            .tvFocusRing(RoundedCornerShape(8.dp))
+                                            .background(
+                                                if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                                                else Color.Transparent
+                                            )
+                                            .clickable {
+                                                onToggleMode(mode)
+                                                modeMenuExpanded = false
+                                            }
+                                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                            color = if (isSelected) {
+                                                MaterialTheme.colorScheme.onPrimaryContainer
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurface
+                                            },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        if (isSelected) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Check,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+                                    if (index < modes.lastIndex) {
+                                        HorizontalDivider(
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                            thickness = 0.5.dp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = if (isInclude) strings.splitTunnelHintInclude else strings.splitTunnelHintExclude,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    if (isInclude && excludedPackages.isEmpty()) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = strings.vpnIncludeNeedsSelection,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text(strings.splitTunnelSearchHint) },
+                        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SplitTunnelFilterChip(
+                            selected = filter == SplitTunnelAppFilter.ALL,
+                            label = strings.splitTunnelFilterAll,
+                            count = loaded?.size ?: 0,
+                            onClick = { filter = SplitTunnelAppFilter.ALL }
+                        )
+                        SplitTunnelFilterChip(
+                            selected = filter == SplitTunnelAppFilter.USER,
+                            label = strings.splitTunnelFilterUser,
+                            count = userCount,
+                            onClick = { filter = SplitTunnelAppFilter.USER }
+                        )
+                        SplitTunnelFilterChip(
+                            selected = filter == SplitTunnelAppFilter.SYSTEM,
+                            label = strings.splitTunnelFilterSystem,
+                            count = systemCount,
+                            onClick = { filter = SplitTunnelAppFilter.SYSTEM }
+                        )
+                    }
+
+                    Spacer(Modifier.weight(1f))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Button(
+                            onClick = onDismiss,
+                            modifier = Modifier.tvFocusRing(CircleShape)
+                        ) {
+                            Text(strings.done)
+                        }
+                    }
+                }
+
+                VerticalDivider(
+                    modifier = Modifier.fillMaxHeight(),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(
+                            onClick = {
+                                val needsSystemConfirmation = filtered.any { app ->
+                                    app.isSystem && !app.packageNames.any { it in excludedPackages }
+                                }
+                                if (needsSystemConfirmation) {
+                                    pendingSystemSelection = filtered
+                                } else {
+                                    onSetPackagesSelected(
+                                        filtered.map { it.primaryPackage }.toSet(),
+                                        true
+                                    )
+                                }
+                            },
+                            enabled = filtered.any { app ->
+                                !app.packageNames.any { it in excludedPackages }
+                            }
+                        ) {
+                            Text(strings.splitTunnelSelectAll)
+                        }
+                        TextButton(
+                            onClick = {
+                                onSetPackagesSelected(
+                                    filtered.flatMap { it.packageNames }.toSet(),
+                                    false
+                                )
+                            },
+                            enabled = filtered.any { app ->
+                                app.packageNames.any { it in excludedPackages }
+                            }
+                        ) {
+                            Text(strings.splitTunnelDeselectAll)
+                        }
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) {
+                        if (loaded == null) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                LoadingIndicator()
+                            }
+                        } else if (filtered.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = strings.splitTunnelEmpty,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                items(
+                                    filtered,
+                                    key = { it.primaryPackage },
+                                    contentType = { "app_row" }
+                                ) { app ->
+                                    val isSelected = app.packageNames.any { it in excludedPackages }
+                                    val iconBitmap by produceState<ImageBitmap?>(
+                                        initialValue = remember(app.primaryPackage) {
+                                            appIconCache[app.primaryPackage]
+                                        },
+                                        key1 = app.primaryPackage
+                                    ) {
+                                        if (value != null) return@produceState
+                                        val loadedIcon = withContext(Dispatchers.IO) {
+                                            runCatching {
+                                                context.packageManager
+                                                    .getApplicationIcon(app.primaryPackage)
+                                                    .toBitmap(width = 96, height = 96)
+                                                    .asImageBitmap()
+                                            }.getOrNull()
+                                        }
+                                        if (loadedIcon != null) {
+                                            appIconCache.put(app.primaryPackage, loadedIcon)
+                                            value = loadedIcon
+                                        }
+                                    }
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .tvFocusRing(RoundedCornerShape(12.dp))
+                                            .clickable {
+                                                if (isSelected) {
+                                                    onSetPackagesSelected(app.packageNames.toSet(), false)
+                                                } else {
+                                                    onSetPackagesSelected(setOf(app.primaryPackage), true)
+                                                }
+                                            }
+                                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        val bmp = iconBitmap
+                                        if (bmp != null) {
+                                            Image(
+                                                bitmap = bmp,
+                                                contentDescription = null,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier
+                                                    .size(34.dp)
+                                                    .clip(RoundedCornerShape(9.dp))
+                                            )
+                                        } else {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(34.dp)
+                                                    .clip(RoundedCornerShape(9.dp))
+                                                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Apps,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+                                        Column(Modifier.weight(1f)) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Text(
+                                                    text = app.label,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Medium,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.weight(1f, fill = false)
+                                                )
+                                                if (app.isSystem) {
+                                                    Surface(
+                                                        shape = RoundedCornerShape(6.dp),
+                                                        color = MaterialTheme.colorScheme.primaryContainer
+                                                    ) {
+                                                        Text(
+                                                            text = strings.splitTunnelFilterSystem,
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            val detail = if (app.uidPackageCount > 1) {
+                                                "${app.primaryPackage} · " + String.format(
+                                                    Locale.ROOT,
+                                                    strings.splitTunnelUidFormat,
+                                                    app.uid,
+                                                    app.uidPackageCount
+                                                )
+                                            } else {
+                                                app.primaryPackage
+                                            }
+                                            Text(
+                                                text = detail,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                        Switch(
+                                            checked = isSelected,
+                                            onCheckedChange = null
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
