@@ -1880,6 +1880,7 @@ private fun SplitTunnelAppsDialog(
     }
 }
 
+@SuppressLint("QueryPermissionsNeeded")
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SplitTunnelAppsDialogTv(
