@@ -1,6 +1,6 @@
 # Simple Proxy
 
-> Lightweight proxy client for Android phones & Android TV
+> Lightweight proxy client for Android phones, tablets & TV
 
 [![Android CI](https://github.com/carleseee/SimpleProxy/actions/workflows/android-security.yml/badge.svg)](https://github.com/carleseee/SimpleProxy/actions/workflows/android-security.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
