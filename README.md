@@ -15,12 +15,14 @@
 
 ## 📸 Screenshots
 
-| Home (Connected) | Options & Full-Width DNS | Split Tunneling |
-| :---: | :---: | :---: |
-| <img src="docs/screenshots/home-connected.png" width="230" alt="Home Screen" /> | <img src="docs/screenshots/options-settings.png" width="230" alt="Options Screen" /> | <img src="docs/screenshots/split-tunneling.png" width="230" alt="Split Tunneling" /> |
+| Home (Connected) | Options | Security | Diagnostics |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/screenshots/home-connected.png" width="200" alt="Home Screen" /> | <img src="docs/screenshots/options-settings.png" width="200" alt="Options Screen" /> | <img src="docs/screenshots/security.png" width="200" alt="Security Screen" /> | <img src="docs/screenshots/diagnostics.png" width="200" alt="Diagnostics Screen" /> |
 
 <p align="center">
-  <img src="docs/screenshots/android-tv.png" width="640" alt="Android TV Mode" />
+  <img src="docs/screenshots/split-tunneling.png" width="210" alt="Split Tunneling" />
+  &nbsp;&nbsp;&nbsp;
+  <img src="docs/screenshots/android-tv.png" width="540" alt="Android TV Mode" />
 </p>
 
 ---
